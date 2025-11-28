@@ -1,5 +1,6 @@
 -- Supabase Database Schema for AI Trucks Delivery Planning System
--- Run this in the Supabase SQL Editor
+-- This schema has been applied to your Supabase project
+-- Project URL: https://tzukzotwqwwhvxgkwjud.supabase.co
 
 -- Enable PostGIS extension (usually already enabled in Supabase)
 CREATE EXTENSION IF NOT EXISTS postgis;
@@ -117,63 +118,6 @@ CREATE TRIGGER update_deliveries_updated_at BEFORE UPDATE ON public.deliveries
 CREATE TRIGGER update_trips_updated_at BEFORE UPDATE ON public.trips
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Row Level Security (RLS) Policies
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.deliveries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.trip_deliveries ENABLE ROW LEVEL SECURITY;
-
--- Users policies
-CREATE POLICY "Users can view their own data" ON public.users
-  FOR SELECT USING (auth.uid() = id);
-
-CREATE POLICY "Admins can view all users" ON public.users
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
-
--- Vehicles policies (all authenticated users can read)
-CREATE POLICY "Authenticated users can view vehicles" ON public.vehicles
-  FOR SELECT USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Admins can manage vehicles" ON public.vehicles
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
-  );
-
--- Deliveries policies
-CREATE POLICY "Authenticated users can view deliveries" ON public.deliveries
-  FOR SELECT USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Delivery creators can create deliveries" ON public.deliveries
-  FOR INSERT WITH CHECK (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('delivery_creator', 'admin'))
-  );
-
-CREATE POLICY "Delivery creators can update deliveries" ON public.deliveries
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('delivery_creator', 'trip_planner', 'admin'))
-  );
-
--- Trips policies
-CREATE POLICY "Authenticated users can view trips" ON public.trips
-  FOR SELECT USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Trip planners can manage trips" ON public.trips
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('trip_planner', 'admin'))
-  );
-
--- Trip deliveries policies
-CREATE POLICY "Authenticated users can view trip deliveries" ON public.trip_deliveries
-  FOR SELECT USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Trip planners can manage trip deliveries" ON public.trip_deliveries
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('trip_planner', 'admin'))
-  );
-
 -- Function to automatically create user profile after signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -184,7 +128,8 @@ BEGIN
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', 'User'),
     COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'viewer')
-  );
+  )
+  ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -1,32 +1,16 @@
--- Fix RLS policies to avoid infinite recursion
--- Run this in the Supabase SQL Editor
+-- Row Level Security (RLS) Policies
+-- These policies have been applied to your Supabase project
 
--- SOLUTION: Disable RLS on users table entirely
--- Since all authenticated users need to read user data, and we control writes through application logic
+-- Disable RLS on users table to avoid infinite recursion
 ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 
--- Drop ALL existing policies on all tables
-DROP POLICY IF EXISTS "Users can view their own data" ON public.users;
-DROP POLICY IF EXISTS "Admins can view all users" ON public.users;
-DROP POLICY IF EXISTS "Users can view all users if they are admin" ON public.users;
-DROP POLICY IF EXISTS "Admins can update user roles" ON public.users;
-DROP POLICY IF EXISTS "Authenticated users can view all users" ON public.users;
-DROP POLICY IF EXISTS "Users can update their own profile" ON public.users;
-DROP POLICY IF EXISTS "Authenticated users can view vehicles" ON public.vehicles;
-DROP POLICY IF EXISTS "Admins can manage vehicles" ON public.vehicles;
-DROP POLICY IF EXISTS "Admins and trip planners can manage vehicles" ON public.vehicles;
-DROP POLICY IF EXISTS "Authenticated users can view deliveries" ON public.deliveries;
-DROP POLICY IF EXISTS "Delivery creators can create deliveries" ON public.deliveries;
-DROP POLICY IF EXISTS "Delivery creators can update deliveries" ON public.deliveries;
-DROP POLICY IF EXISTS "Authenticated users can view trips" ON public.trips;
-DROP POLICY IF EXISTS "Trip planners can manage trips" ON public.trips;
-DROP POLICY IF EXISTS "Authenticated users can view trip deliveries" ON public.trip_deliveries;
-DROP POLICY IF EXISTS "Trip planners can manage trip deliveries" ON public.trip_deliveries;
+-- Enable RLS on other tables
+ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.deliveries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.trip_deliveries ENABLE ROW LEVEL SECURITY;
 
--- Drop the function if it exists
-DROP FUNCTION IF EXISTS public.get_my_role();
-
--- Create a security definer function to get user role (this bypasses RLS completely)
+-- Create a security definer function to get user role (bypasses RLS)
 CREATE OR REPLACE FUNCTION public.get_my_role()
 RETURNS user_role
 LANGUAGE plpgsql
