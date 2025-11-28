@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getVehicles, createVehicle, updateVehicle } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Edit } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { ColumnDef } from '@tanstack/react-table';
+import { Table, createBadgeColumn, createNumberColumn, createActionColumn } from '../components/Table';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -142,6 +144,33 @@ const Vehicles = () => {
     }
   };
 
+  // Define table columns
+  const columns = useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'Name',
+      },
+      {
+        accessorKey: 'license_plate',
+        header: 'License Plate',
+      },
+      {
+        accessorKey: 'start_location',
+        header: 'Start Location',
+        cell: ({ getValue }) => (getValue() as string) || '-',
+      },
+      createNumberColumn('capacity_weight', 'Capacity Weight (kg)', { decimals: 2 }),
+      createNumberColumn('capacity_volume', 'Capacity Volume (m³)', { decimals: 2 }),
+      createBadgeColumn('status', 'Status'),
+      createActionColumn({
+        onEdit: hasRole('admin') ? handleEdit : undefined,
+        showEdit: () => hasRole('admin'),
+      }),
+    ],
+    [hasRole, vehicles]
+  );
+
   const getStatusBadge = (status: string) => {
     const statusMap: any = {
       available: 'delivered',
@@ -166,48 +195,14 @@ const Vehicles = () => {
         )}
       </div>
 
-      <div className="card">
-        {vehicles.length === 0 ? (
-          <p>No vehicles found. Add vehicles to manage your fleet.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>License Plate</th>
-                <th>Start Location</th>
-                <th>Capacity Weight (kg)</th>
-                <th>Capacity Volume (m³)</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vehicles.map((vehicle) => (
-                <tr key={vehicle.id}>
-                  <td>{vehicle.name}</td>
-                  <td>{vehicle.license_plate}</td>
-                  <td>{vehicle.start_location || '-'}</td>
-                  <td>{vehicle.capacity_weight}</td>
-                  <td>{vehicle.capacity_volume}</td>
-                  <td>{getStatusBadge(vehicle.status)}</td>
-                  <td>
-                    {hasRole('admin') && (
-                      <button 
-                        className="btn-secondary" 
-                        style={{ padding: '6px 12px' }}
-                        onClick={() => handleEdit(vehicle)}
-                      >
-                        <Edit size={16} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <Table
+        data={vehicles}
+        columns={columns}
+        loading={loading}
+        emptyMessage="No vehicles found. Add vehicles to manage your fleet."
+        enableSorting={true}
+        getRowId={(row) => row.id}
+      />
 
       {showModal && (
         <div className="modal-overlay" onClick={() => { setShowModal(false); setEditingVehicle(null); }}>

@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getDeliveries, createDelivery, updateDelivery, deleteDelivery } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Trash2, Edit, Download, Upload } from 'lucide-react';
+import { Plus, Download, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { ColumnDef } from '@tanstack/react-table';
+import { Table, createBadgeColumn, createDateColumn, createNumberColumn, createActionColumn } from '../components/Table';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -162,10 +164,6 @@ const Deliveries = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    return <span className={`badge badge-${status}`}>{status}</span>;
-  };
-
   const handleExport = () => {
     // Prepare data for export
     const exportData = deliveries.map(delivery => {
@@ -253,6 +251,43 @@ const Deliveries = () => {
     e.target.value = '';
   };
 
+  // Define table columns
+  const columns = useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        accessorKey: 'customer_name',
+        header: 'Customer',
+      },
+      {
+        accessorKey: 'delivery_address',
+        header: 'Address',
+      },
+      {
+        id: 'location',
+        header: 'Location',
+        cell: ({ row }) => {
+          const hasLocation = row.original.delivery_location && row.original.delivery_location.includes('POINT');
+          return hasLocation ? (
+            <span style={{ color: '#28a745', fontWeight: 'bold' }}>✓ Valid</span>
+          ) : (
+            <span style={{ color: '#dc3545', fontWeight: 'bold' }}>⚠ Missing</span>
+          );
+        },
+      },
+      createDateColumn('scheduled_date', 'Scheduled Date'),
+      createNumberColumn('weight', 'Weight (kg)', { decimals: 2 }),
+      createNumberColumn('volume', 'Volume (m³)', { decimals: 2 }),
+      createBadgeColumn('status', 'Status'),
+      createActionColumn({
+        onEdit: (hasRole('delivery_creator') || hasRole('admin')) ? handleEdit : undefined,
+        onDelete: (hasRole('delivery_creator') || hasRole('admin')) ? (row) => handleDelete(row.id) : undefined,
+        showEdit: () => hasRole('delivery_creator') || hasRole('admin'),
+        showDelete: () => hasRole('delivery_creator') || hasRole('admin'),
+      }),
+    ],
+    [hasRole, deliveries]
+  );
+
   if (loading) return <div>Loading...</div>;
 
   return (
@@ -285,67 +320,18 @@ const Deliveries = () => {
         </div>
       </div>
 
-      <div className="card">
-        {deliveries.length === 0 ? (
-          <p>No deliveries found. Create your first delivery to get started.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Customer</th>
-                <th>Address</th>
-                <th>Location</th>
-                <th>Scheduled Date</th>
-                <th>Weight (kg)</th>
-                <th>Volume (m³)</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deliveries.map((delivery) => {
-                const hasLocation = delivery.delivery_location && delivery.delivery_location.includes('POINT');
-                return (
-                <tr key={delivery.id} style={!hasLocation ? { backgroundColor: '#fff3cd' } : {}}>
-                  <td>{delivery.customer_name}</td>
-                  <td>{delivery.delivery_address}</td>
-                  <td>
-                    {hasLocation ? (
-                      <span style={{ color: '#28a745', fontWeight: 'bold' }}>✓ Valid</span>
-                    ) : (
-                      <span style={{ color: '#dc3545', fontWeight: 'bold' }}>⚠ Missing</span>
-                    )}
-                  </td>
-                  <td>{new Date(delivery.scheduled_date).toLocaleString()}</td>
-                  <td>{delivery.weight}</td>
-                  <td>{delivery.volume}</td>
-                  <td>{getStatusBadge(delivery.status)}</td>
-                  <td>
-                    {hasRole('delivery_creator', 'admin') && (
-                      <>
-                        <button 
-                          className="btn-secondary" 
-                          style={{ marginRight: '8px', padding: '6px 12px' }}
-                          onClick={() => handleEdit(delivery)}
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button 
-                          className="btn-danger" 
-                          style={{ padding: '6px 12px' }}
-                          onClick={() => handleDelete(delivery.id)}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              )})}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <Table
+        data={deliveries}
+        columns={columns}
+        loading={loading}
+        emptyMessage="No deliveries found. Create your first delivery to get started."
+        enableSorting={true}
+        getRowId={(row) => row.id}
+        rowClassName={(row) => {
+          const hasLocation = row.delivery_location && row.delivery_location.includes('POINT');
+          return !hasLocation ? 'row--warning' : undefined;
+        }}
+      />
 
       {showModal && (
         <div className="modal-overlay" onClick={() => { setShowModal(false); setEditingDelivery(null); }}>
