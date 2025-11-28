@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import React, { useEffect, useState, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import { getDeliveries, getVehicles, getTrips } from '../services/api';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -35,6 +35,20 @@ const vehicleIcon = new L.Icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41]
 });
+
+// Component to fit map bounds to markers
+const FitBounds = ({ locations }: { locations: [number, number][] }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (locations.length > 0) {
+      const bounds = L.latLngBounds(locations);
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    }
+  }, [locations, map]);
+
+  return null;
+};
 
 const Map = () => {
   const [deliveries, setDeliveries] = useState<any[]>([]);
@@ -89,6 +103,23 @@ const Map = () => {
   // Default center (Paris)
   const defaultCenter: [number, number] = [48.8566, 2.3522];
 
+  // Collect all valid locations for auto-fit
+  const allLocations: [number, number][] = [];
+  
+  if (showDeliveries) {
+    deliveries.forEach((delivery) => {
+      const location = parseLocation(delivery.delivery_location);
+      if (location) allLocations.push(location);
+    });
+  }
+  
+  if (showVehicles) {
+    vehicles.forEach((vehicle) => {
+      const location = parseLocation(vehicle.current_location);
+      if (location) allLocations.push(location);
+    });
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -134,6 +165,9 @@ const Map = () => {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+
+          {/* Auto-fit map to show all markers */}
+          <FitBounds locations={allLocations} />
 
           {/* Delivery Markers */}
           {showDeliveries && deliveries.map((delivery) => {

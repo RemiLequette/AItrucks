@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getVehicles, createVehicle, updateVehicle } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Plus } from 'lucide-react';eact';
+import { Plus, Edit } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
