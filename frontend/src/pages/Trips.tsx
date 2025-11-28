@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getTrips, createTrip, getVehicles, getTrip, getDeliveries, assignDeliveriesToTrip } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Edit2 } from 'lucide-react';
+import { ColumnDef } from '@tanstack/react-table';
+import { Table, createBadgeColumn, createDateColumn, createNumberColumn, createActionColumn } from '../components/Table';
 
 const Trips = () => {
   const [trips, setTrips] = useState<any[]>([]);
@@ -106,17 +108,33 @@ const Trips = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusMap: any = {
-      planned: 'pending',
-      in_progress: 'in-transit',
-      completed: 'delivered',
-      cancelled: 'cancelled',
-    };
-    return <span className={`badge badge-${statusMap[status]}`}>{status}</span>;
-  };
-
-  if (loading) return <div>Loading...</div>;
+  // Define table columns
+  const columns = useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'Trip Name',
+      },
+      {
+        id: 'vehicle',
+        header: 'Vehicle',
+        cell: ({ row }) => `${row.original.vehicle_name} (${row.original.license_plate})`,
+      },
+      {
+        accessorKey: 'delivery_count',
+        header: 'Deliveries',
+      },
+      createDateColumn('planned_start_time', 'Start Time'),
+      createBadgeColumn('status', 'Status'),
+      createNumberColumn('total_weight', 'Weight (kg)', { decimals: 2, suffix: '' }),
+      createNumberColumn('total_volume', 'Volume (m³)', { decimals: 2, suffix: '' }),
+      createActionColumn({
+        onAssign: hasRole('trip_planner', 'admin') ? handleOpenAssignModal : undefined,
+        showAssign: () => hasRole('trip_planner', 'admin'),
+      }),
+    ],
+    [hasRole]
+  );
 
   return (
     <div>
@@ -130,51 +148,14 @@ const Trips = () => {
         )}
       </div>
 
-      <div className="card">
-        {trips.length === 0 ? (
-          <p>No trips found. Create trips to assign deliveries to vehicles.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Trip Name</th>
-                <th>Vehicle</th>
-                <th>Deliveries</th>
-                <th>Start Time</th>
-                <th>Status</th>
-                <th>Weight (kg)</th>
-                <th>Volume (m³)</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trips.map((trip) => (
-                <tr key={trip.id}>
-                  <td>{trip.name}</td>
-                  <td>{trip.vehicle_name} ({trip.license_plate})</td>
-                  <td>{trip.delivery_count}</td>
-                  <td>{new Date(trip.planned_start_time).toLocaleString()}</td>
-                  <td>{getStatusBadge(trip.status)}</td>
-                  <td>{trip.total_weight || '-'}</td>
-                  <td>{trip.total_volume || '-'}</td>
-                  <td>
-                    {hasRole('trip_planner', 'admin') && (
-                      <button 
-                        className="btn-secondary" 
-                        style={{ padding: '6px 12px' }}
-                        onClick={() => handleOpenAssignModal(trip)}
-                      >
-                        <Edit2 size={16} style={{ marginRight: '4px', display: 'inline' }} />
-                        Assign
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <Table
+        data={trips}
+        columns={columns}
+        loading={loading}
+        emptyMessage="No trips found. Create trips to assign deliveries to vehicles."
+        enableSorting={true}
+        getRowId={(row) => row.id}
+      />
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
