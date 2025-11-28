@@ -1,18 +1,38 @@
 import React, { useEffect, useState } from 'react';
-import { getVehicles, createVehicle } from '../services/api';
+import { getVehicles, createVehicle, updateVehicle } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';eact';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix for default marker icons
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
 
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<any>(null);
+  const [geocoding, setGeocoding] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     license_plate: '',
     capacity_weight: '',
     capacity_volume: '',
-    start_location: ''
+    start_location: '',
+    latitude: '',
+    longitude: ''
   });
   const { hasRole } = useAuth();
 
@@ -31,22 +51,89 @@ const Vehicles = () => {
     }
   };
 
+  const handleGeocode = async () => {
+    if (!formData.start_location) {
+      alert('Please enter a start location first');
+      return;
+    }
+
+    setGeocoding(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(formData.start_location)}&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'AITrucks Delivery App'
+          }
+        }
+      );
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        setFormData({
+          ...formData,
+          latitude: data[0].lat,
+          longitude: data[0].lon
+        });
+        alert('Coordinates found successfully!');
+      } else {
+        alert('Could not find coordinates for this address. Please enter them manually.');
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      alert('Failed to geocode address. Please enter coordinates manually.');
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
+  const handleEdit = (vehicle: any) => {
+    // Parse location from POINT format
+    const match = vehicle.current_location?.match(/POINT\(([\d.-]+)\s+([\d.-]+)\)/);
+    const longitude = match ? match[1] : '';
+    const latitude = match ? match[2] : '';
+
+    setEditingVehicle(vehicle);
+    setFormData({
+      name: vehicle.name,
+      license_plate: vehicle.license_plate,
+      capacity_weight: vehicle.capacity_weight.toString(),
+      capacity_volume: vehicle.capacity_volume.toString(),
+      start_location: vehicle.start_location || '',
+      latitude,
+      longitude
+    });
+    setShowModal(true);
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const vehicleData = {
-        ...formData,
+        name: formData.name,
+        license_plate: formData.license_plate,
         capacity_weight: parseFloat(formData.capacity_weight),
-        capacity_volume: parseFloat(formData.capacity_volume)
+        capacity_volume: parseFloat(formData.capacity_volume),
+        start_location: formData.start_location,
+        current_location: `POINT(${formData.longitude} ${formData.latitude})`
       };
-      await createVehicle(vehicleData);
+      
+      if (editingVehicle) {
+        await updateVehicle(editingVehicle.id, vehicleData);
+      } else {
+        await createVehicle(vehicleData);
+      }
+      
       setShowModal(false);
+      setEditingVehicle(null);
       setFormData({
         name: '',
         license_plate: '',
         capacity_weight: '',
         capacity_volume: '',
-        start_location: ''
+        start_location: '',
+        latitude: '',
+        longitude: ''
       });
       fetchVehicles();
     } catch (error) {
@@ -72,7 +159,7 @@ const Vehicles = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h1 className="page-title">Vehicles</h1>
         {hasRole('admin') && (
-          <button className="btn-primary" onClick={() => setShowModal(true)}>
+          <button className="btn-primary" onClick={() => { setEditingVehicle(null); setShowModal(true); }}>
             <Plus size={18} style={{ marginRight: '8px', display: 'inline' }} />
             New Vehicle
           </button>
@@ -92,6 +179,7 @@ const Vehicles = () => {
                 <th>Capacity Weight (kg)</th>
                 <th>Capacity Volume (m³)</th>
                 <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -103,6 +191,17 @@ const Vehicles = () => {
                   <td>{vehicle.capacity_weight}</td>
                   <td>{vehicle.capacity_volume}</td>
                   <td>{getStatusBadge(vehicle.status)}</td>
+                  <td>
+                    {hasRole('admin') && (
+                      <button 
+                        className="btn-secondary" 
+                        style={{ padding: '6px 12px' }}
+                        onClick={() => handleEdit(vehicle)}
+                      >
+                        <Edit size={16} />
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -111,9 +210,9 @@ const Vehicles = () => {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowModal(false); setEditingVehicle(null); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>Create New Vehicle</h2>
+            <h2>{editingVehicle ? 'Edit Vehicle' : 'Create New Vehicle'}</h2>
             <form onSubmit={handleCreate}>
               <div className="form-group">
                 <label>Vehicle Name *</label>
@@ -142,6 +241,39 @@ const Vehicles = () => {
                   placeholder="e.g., 123 Main St, Paris, France"
                   required
                 />
+                <button 
+                  type="button" 
+                  className="btn-secondary" 
+                  onClick={handleGeocode}
+                  disabled={geocoding}
+                  style={{ marginTop: '8px', width: '100%' }}
+                >
+                  {geocoding ? 'Finding coordinates...' : '📍 Get Coordinates from Address'}
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Latitude *</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formData.latitude}
+                    onChange={(e) => setFormData({...formData, latitude: e.target.value})}
+                    placeholder="e.g., 48.8566"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Longitude *</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formData.longitude}
+                    onChange={(e) => setFormData({...formData, longitude: e.target.value})}
+                    placeholder="e.g., 2.3522"
+                    required
+                  />
+                </div>
               </div>
               <div className="form-group">
                 <label>Capacity Weight (kg) *</label>
@@ -163,9 +295,35 @@ const Vehicles = () => {
                   required
                 />
               </div>
+
+              {/* Preview Map */}
+              {formData.latitude && formData.longitude && (
+                <div className="form-group">
+                  <label>Location Preview</label>
+                  <div style={{ height: '200px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #dee2e6' }}>
+                    <MapContainer
+                      center={[parseFloat(formData.latitude), parseFloat(formData.longitude)]}
+                      zoom={13}
+                      style={{ height: '100%', width: '100%' }}
+                      key={`${formData.latitude}-${formData.longitude}`}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      <Marker position={[parseFloat(formData.latitude), parseFloat(formData.longitude)]}>
+                        <Popup>{formData.start_location}</Popup>
+                      </Marker>
+                    </MapContainer>
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                <button type="submit" className="btn-primary">Create Vehicle</button>
-                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="submit" className="btn-primary">
+                  {editingVehicle ? 'Update Vehicle' : 'Create Vehicle'}
+                </button>
+                <button type="button" className="btn-secondary" onClick={() => { setShowModal(false); setEditingVehicle(null); }}>Cancel</button>
               </div>
             </form>
           </div>

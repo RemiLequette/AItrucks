@@ -63,8 +63,19 @@ export const deleteDelivery = async (id: string) => {
 
 // Vehicles
 export const getVehicles = async () => {
-  const { data, error } = await supabase.from('vehicles').select('*').order('name', { ascending: true });
-  if (error) throw error;
+  // Query with ST_AsText to get human-readable coordinates
+  const { data, error } = await supabase.rpc('get_vehicles_with_location');
+  
+  if (error) {
+    // Fallback to basic query if RPC doesn't exist
+    const { data: basicData, error: basicError } = await supabase
+      .from('vehicles')
+      .select('*')
+      .order('name', { ascending: true });
+    if (basicError) throw basicError;
+    return { vehicles: basicData || [] };
+  }
+  
   return { vehicles: data || [] };
 };
 
