@@ -10,6 +10,12 @@ export interface TableProps<TData> {
   enableRowSelection?: boolean;
   getRowId?: (row: TData) => string;
   rowClassName?: (row: TData) => string | undefined;
+  draggable?: boolean;
+  onDragStart?: (index: number, e: React.DragEvent) => void;
+  onDragOver?: (index: number, e: React.DragEvent) => void;
+  onDrop?: (index: number, e: React.DragEvent) => void;
+  onDragEnd?: () => void;
+  draggedIndex?: number | null;
 }
 
 export type StatusVariant = 'pending' | 'in-transit' | 'delivered' | 'cancelled' | 'available' | 'in-use' | 'maintenance' | 'planned' | 'completed';

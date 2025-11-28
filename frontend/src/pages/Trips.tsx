@@ -13,7 +13,11 @@ const Trips = () => {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [availableDeliveries, setAvailableDeliveries] = useState<any[]>([]);
   const [selectedTrip, setSelectedTrip] = useState<any>(null);
+  const [selectedTripForView, setSelectedTripForView] = useState<any>(null);
+  const [tripDeliveries, setTripDeliveries] = useState<any[]>([]);
+  const [loadingDeliveries, setLoadingDeliveries] = useState(false);
   const [selectedDeliveryIds, setSelectedDeliveryIds] = useState<string[]>([]);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     vehicle_id: '',
@@ -101,11 +105,89 @@ const Trips = () => {
       setSelectedTrip(null);
       setSelectedDeliveryIds([]);
       fetchTrips();
+      if (selectedTripForView?.id === selectedTrip.id) {
+        handleTripClick(selectedTrip);
+      }
       alert('Deliveries assigned successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error assigning deliveries:', error);
-      alert('Failed to assign deliveries');
+      alert(`Failed to assign deliveries: ${error.message || 'Unknown error'}`);
     }
+  };
+
+  const handleTripClick = async (trip: any) => {
+    setSelectedTripForView(trip);
+    setLoadingDeliveries(true);
+    try {
+      const tripResponse = await getTrip(trip.id);
+      setTripDeliveries(tripResponse.deliveries || []);
+    } catch (error) {
+      console.error('Error loading trip deliveries:', error);
+      setTripDeliveries([]);
+    } finally {
+      setLoadingDeliveries(false);
+    }
+  };
+
+  const handleRemoveDeliveryFromTrip = async (deliveryId: string) => {
+    if (!selectedTripForView) return;
+    if (!confirm('Remove this delivery from the trip?')) return;
+
+    try {
+      const updatedDeliveryIds = tripDeliveries
+        .filter(d => d.id !== deliveryId)
+        .map(d => d.id);
+      
+      await assignDeliveriesToTrip(selectedTripForView.id, updatedDeliveryIds);
+      await handleTripClick(selectedTripForView);
+      fetchTrips();
+    } catch (error) {
+      console.error('Error removing delivery:', error);
+      alert('Failed to remove delivery from trip');
+    }
+  };
+
+  const handleDragStart = (index: number, e: React.DragEvent) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (index: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (dropIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (draggedIndex === null || draggedIndex === dropIndex || !selectedTripForView) {
+      setDraggedIndex(null);
+      return;
+    }
+
+    const items = [...tripDeliveries];
+    const draggedItem = items[draggedIndex];
+    items.splice(draggedIndex, 1);
+    items.splice(dropIndex, 0, draggedItem);
+    
+    setTripDeliveries(items);
+    setDraggedIndex(null);
+    
+    try {
+      const updatedDeliveryIds = items.map(d => d.id);
+      await assignDeliveriesToTrip(selectedTripForView.id, updatedDeliveryIds);
+      fetchTrips();
+    } catch (error) {
+      console.error('Error updating delivery order:', error);
+      alert('Failed to update delivery order');
+      await handleTripClick(selectedTripForView);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
   };
 
   // Define table columns
@@ -136,6 +218,51 @@ const Trips = () => {
     [hasRole]
   );
 
+  const deliveryColumns = useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        id: 'sequence',
+        header: '#',
+        size: 60,
+        cell: ({ row }) => (
+          <div style={{ 
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '4px'
+          }}>
+            {hasRole('trip_planner', 'admin') && (
+              <span style={{ fontSize: '18px', color: '#999' }}>⋮⋮</span>
+            )}
+            <span style={{ fontWeight: 500, color: '#666' }}>{row.index + 1}</span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'customer_name',
+        header: 'Customer',
+      },
+      {
+        accessorKey: 'delivery_address',
+        header: 'Address',
+      },
+      createDateColumn('scheduled_date', 'Scheduled Date'),
+      createNumberColumn('weight', 'Weight (kg)', { decimals: 2 }),
+      createNumberColumn('volume', 'Volume (m³)', { decimals: 2 }),
+      createBadgeColumn('status', 'Status'),
+      createActionColumn({
+        customActions: hasRole('trip_planner', 'admin') ? [
+          {
+            label: 'Remove',
+            onClick: (row) => handleRemoveDeliveryFromTrip(row.id),
+            className: 'btn-danger',
+          }
+        ] : [],
+      }),
+    ],
+    [hasRole, tripDeliveries]
+  );
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -155,7 +282,48 @@ const Trips = () => {
         emptyMessage="No trips found. Create trips to assign deliveries to vehicles."
         enableSorting={true}
         getRowId={(row) => row.id}
+        onRowClick={handleTripClick}
+        rowClassName={(row) => row.id === selectedTripForView?.id ? 'row--info' : undefined}
       />
+
+      {selectedTripForView && (
+        <div style={{ marginTop: '32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div>
+              <h2 className="page-title" style={{ marginBottom: '8px' }}>
+                Deliveries for {selectedTripForView.name}
+              </h2>
+              <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>
+                Vehicle: {selectedTripForView.vehicle_name} ({selectedTripForView.license_plate})
+              </p>
+            </div>
+            {hasRole('trip_planner', 'admin') && (
+              <button 
+                className="btn-secondary" 
+                onClick={() => handleOpenAssignModal(selectedTripForView)}
+              >
+                <Edit2 size={16} style={{ marginRight: '6px', display: 'inline' }} />
+                Modify Assignments
+              </button>
+            )}
+          </div>
+          
+          <Table
+            data={tripDeliveries}
+            columns={deliveryColumns}
+            loading={loadingDeliveries}
+            emptyMessage="No deliveries assigned to this trip yet. Click 'Modify Assignments' to add deliveries."
+            enableSorting={false}
+            getRowId={(row) => row.id}
+            draggable={hasRole('trip_planner', 'admin')}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onDragEnd={handleDragEnd}
+            draggedIndex={draggedIndex}
+          />
+        </div>
+      )}
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>

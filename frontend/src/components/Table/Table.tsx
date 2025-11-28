@@ -19,6 +19,12 @@ function Table<TData>({
   enableRowSelection = false,
   getRowId,
   rowClassName,
+  draggable = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  draggedIndex,
 }: TableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
@@ -89,12 +95,22 @@ function Table<TData>({
         <tbody>
           {table.getRowModel().rows.map((row) => {
             const customClassName = rowClassName ? rowClassName(row.original) : undefined;
+            const isDragged = draggable && draggedIndex === row.index;
             return (
               <tr
                 key={row.id}
                 className={customClassName}
+                draggable={draggable}
                 onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-                style={onRowClick ? { cursor: 'pointer' } : undefined}
+                onDragStart={draggable && onDragStart ? (e) => onDragStart(row.index, e) : undefined}
+                onDragOver={draggable && onDragOver ? (e) => onDragOver(row.index, e) : undefined}
+                onDrop={draggable && onDrop ? (e) => onDrop(row.index, e) : undefined}
+                onDragEnd={draggable && onDragEnd ? onDragEnd : undefined}
+                style={{
+                  cursor: onRowClick ? 'pointer' : draggable ? 'move' : 'default',
+                  opacity: isDragged ? 0.5 : 1,
+                  backgroundColor: isDragged ? '#f8f9fa' : undefined,
+                }}
               >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id}>

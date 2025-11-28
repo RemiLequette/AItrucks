@@ -139,7 +139,11 @@ export const deleteTrip = async (id: string) => {
 // Assign deliveries to trip
 export const assignDeliveriesToTrip = async (tripId: string, deliveryIds: string[]) => {
   // First, remove existing assignments
-  await supabase.from('trip_deliveries').delete().eq('trip_id', tripId);
+  const { error: deleteError } = await supabase.from('trip_deliveries').delete().eq('trip_id', tripId);
+  if (deleteError) {
+    console.error('Error deleting existing assignments:', deleteError);
+    throw deleteError;
+  }
   
   // Then add new assignments with sequence
   const assignments = deliveryIds.map((deliveryId, index) => ({
@@ -148,8 +152,14 @@ export const assignDeliveriesToTrip = async (tripId: string, deliveryIds: string
     sequence_order: index + 1
   }));
   
-  const { error } = await supabase.from('trip_deliveries').insert(assignments);
-  if (error) throw error;
+  if (assignments.length > 0) {
+    const { error: insertError } = await supabase.from('trip_deliveries').insert(assignments);
+    if (insertError) {
+      console.error('Error inserting assignments:', insertError);
+      throw insertError;
+    }
+  }
+  
   return { message: 'Deliveries assigned successfully' };
 };
 
