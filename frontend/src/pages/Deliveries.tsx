@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getDeliveries, createDelivery, deleteDelivery } from '../services/api';
+import { getDeliveries, createDelivery, updateDelivery, deleteDelivery } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Trash2, Edit } from 'lucide-react';
 
@@ -7,10 +7,13 @@ const Deliveries = () => {
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingDelivery, setEditingDelivery] = useState<any>(null);
   const [formData, setFormData] = useState({
     customer_name: '',
     customer_phone: '',
     delivery_address: '',
+    latitude: '',
+    longitude: '',
     scheduled_date: '',
     weight: '',
     volume: '',
@@ -44,22 +47,55 @@ const Deliveries = () => {
     }
   };
 
+  const handleEdit = (delivery: any) => {
+    // Parse location from POINT format
+    const match = delivery.delivery_location?.match(/POINT\(([\d.-]+)\s+([\d.-]+)\)/);
+    const longitude = match ? match[1] : '';
+    const latitude = match ? match[2] : '';
+
+    setEditingDelivery(delivery);
+    setFormData({
+      customer_name: delivery.customer_name,
+      customer_phone: delivery.customer_phone || '',
+      delivery_address: delivery.delivery_address,
+      latitude,
+      longitude,
+      scheduled_date: delivery.scheduled_date?.substring(0, 16) || '',
+      weight: delivery.weight.toString(),
+      volume: delivery.volume.toString(),
+      notes: delivery.notes || ''
+    });
+    setShowModal(true);
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // For now, use a dummy location (Paris coordinates)
       const deliveryData = {
-        ...formData,
+        customer_name: formData.customer_name,
+        customer_phone: formData.customer_phone,
+        delivery_address: formData.delivery_address,
+        scheduled_date: formData.scheduled_date,
         weight: parseFloat(formData.weight),
         volume: parseFloat(formData.volume),
-        delivery_location: 'POINT(2.3522 48.8566)'
+        notes: formData.notes,
+        delivery_location: `POINT(${formData.longitude} ${formData.latitude})`
       };
-      await createDelivery(deliveryData);
+      
+      if (editingDelivery) {
+        await updateDelivery(editingDelivery.id, deliveryData);
+      } else {
+        await createDelivery(deliveryData);
+      }
+      
       setShowModal(false);
+      setEditingDelivery(null);
       setFormData({
         customer_name: '',
         customer_phone: '',
         delivery_address: '',
+        latitude: '',
+        longitude: '',
         scheduled_date: '',
         weight: '',
         volume: '',
@@ -83,7 +119,7 @@ const Deliveries = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h1 className="page-title">Deliveries</h1>
         {hasRole('delivery_creator', 'admin') && (
-          <button className="btn-primary" onClick={() => setShowModal(true)}>
+          <button className="btn-primary" onClick={() => { setEditingDelivery(null); setShowModal(true); }}>
             <Plus size={18} style={{ marginRight: '8px', display: 'inline' }} />
             New Delivery
           </button>
@@ -121,6 +157,7 @@ const Deliveries = () => {
                         <button 
                           className="btn-secondary" 
                           style={{ marginRight: '8px', padding: '6px 12px' }}
+                          onClick={() => handleEdit(delivery)}
                         >
                           <Edit size={16} />
                         </button>
@@ -142,9 +179,9 @@ const Deliveries = () => {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowModal(false); setEditingDelivery(null); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>Create New Delivery</h2>
+            <h2>{editingDelivery ? 'Edit Delivery' : 'Create New Delivery'}</h2>
             <form onSubmit={handleCreate}>
               <div className="form-group">
                 <label>Customer Name *</label>
@@ -170,6 +207,30 @@ const Deliveries = () => {
                   onChange={(e) => setFormData({...formData, delivery_address: e.target.value})}
                   required
                 />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Latitude *</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formData.latitude}
+                    onChange={(e) => setFormData({...formData, latitude: e.target.value})}
+                    placeholder="e.g., 48.8566"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Longitude *</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formData.longitude}
+                    onChange={(e) => setFormData({...formData, longitude: e.target.value})}
+                    placeholder="e.g., 2.3522"
+                    required
+                  />
+                </div>
               </div>
               <div className="form-group">
                 <label>Scheduled Date *</label>
@@ -208,8 +269,10 @@ const Deliveries = () => {
                 />
               </div>
               <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                <button type="submit" className="btn-primary">Create Delivery</button>
-                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="submit" className="btn-primary">
+                  {editingDelivery ? 'Update Delivery' : 'Create Delivery'}
+                </button>
+                <button type="button" className="btn-secondary" onClick={() => { setShowModal(false); setEditingDelivery(null); }}>Cancel</button>
               </div>
             </form>
           </div>

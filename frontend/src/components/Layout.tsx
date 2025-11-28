@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Truck, Package, MapPin, Users, LogOut, LayoutDashboard } from 'lucide-react';
+import { Truck, Package, MapPin, Users, LogOut, LayoutDashboard, Map as MapIcon } from 'lucide-react';
 import './Layout.css';
 
 interface LayoutProps {
@@ -41,6 +41,11 @@ const Layout = ({ children }: LayoutProps) => {
           <Link to="/trips" className={isActive('/trips') ? 'nav-link active' : 'nav-link'}>
             <MapPin size={20} />
             <span>Trips</span>
+          </Link>
+
+          <Link to="/map" className={isActive('/map') ? 'nav-link active' : 'nav-link'}>
+            <MapIcon size={20} />
+            <span>Map</span>
           </Link>
 
           {hasRole('admin') && (

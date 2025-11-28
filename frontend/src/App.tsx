@@ -7,6 +7,7 @@ import Deliveries from './pages/Deliveries';
 import Vehicles from './pages/Vehicles';
 import Trips from './pages/Trips';
 import Users from './pages/Users';
+import Map from './pages/Map';
 import Layout from './components/Layout';
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
           <Route path="/deliveries" element={<Deliveries />} />
           <Route path="/vehicles" element={<Vehicles />} />
           <Route path="/trips" element={<Trips />} />
+          <Route path="/map" element={<Map />} />
           {user.role === 'admin' && <Route path="/users" element={<Users />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
