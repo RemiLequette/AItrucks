@@ -56,6 +56,8 @@ const Map = () => {
         getVehicles(),
         getTrips()
       ]);
+      console.log('Deliveries data:', deliveriesRes.deliveries);
+      console.log('Sample delivery location:', deliveriesRes.deliveries[0]?.delivery_location);
       setDeliveries(deliveriesRes.deliveries);
       setVehicles(vehiclesRes.vehicles);
       setTrips(tripsRes.trips);
@@ -68,11 +70,17 @@ const Map = () => {
 
   // Parse PostGIS POINT format: "POINT(lng lat)"
   const parseLocation = (locationStr: string): [number, number] | null => {
-    if (!locationStr) return null;
+    if (!locationStr) {
+      console.log('No location string provided');
+      return null;
+    }
     const match = locationStr.match(/POINT\(([-\d.]+)\s+([-\d.]+)\)/);
     if (match) {
-      return [parseFloat(match[2]), parseFloat(match[1])]; // [lat, lng]
+      const result: [number, number] = [parseFloat(match[2]), parseFloat(match[1])]; // [lat, lng]
+      console.log('Parsed location:', locationStr, '→', result);
+      return result;
     }
+    console.log('Failed to parse location:', locationStr);
     return null;
   };
 

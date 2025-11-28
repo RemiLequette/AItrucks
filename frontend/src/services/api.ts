@@ -19,8 +19,21 @@ export const getCurrentUser = async () => {
 
 // Deliveries
 export const getDeliveries = async () => {
-  const { data, error } = await supabase.from('deliveries').select('*').order('scheduled_date', { ascending: true });
-  if (error) throw error;
+  // Query with ST_AsText to get human-readable coordinates
+  const { data, error } = await supabase
+    .rpc('get_deliveries_with_location')
+    .order('scheduled_date', { ascending: true });
+  
+  if (error) {
+    // Fallback to basic query if RPC doesn't exist
+    const { data: basicData, error: basicError } = await supabase
+      .from('deliveries')
+      .select('*')
+      .order('scheduled_date', { ascending: true });
+    if (basicError) throw basicError;
+    return { deliveries: basicData || [] };
+  }
+  
   return { deliveries: data || [] };
 };
 

@@ -2,12 +2,29 @@ import React, { useEffect, useState } from 'react';
 import { getDeliveries, createDelivery, updateDelivery, deleteDelivery } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Trash2, Edit } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix for default marker icons
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
 
 const Deliveries = () => {
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState<any>(null);
+  const [geocoding, setGeocoding] = useState(false);
   const [formData, setFormData] = useState({
     customer_name: '',
     customer_phone: '',
@@ -66,6 +83,42 @@ const Deliveries = () => {
       notes: delivery.notes || ''
     });
     setShowModal(true);
+  };
+
+  const handleGeocode = async () => {
+    if (!formData.delivery_address) {
+      alert('Please enter a delivery address first');
+      return;
+    }
+
+    setGeocoding(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(formData.delivery_address)}&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'AITrucks Delivery App'
+          }
+        }
+      );
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        setFormData({
+          ...formData,
+          latitude: data[0].lat,
+          longitude: data[0].lon
+        });
+        alert('Coordinates found successfully!');
+      } else {
+        alert('Could not find coordinates for this address. Please enter them manually.');
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      alert('Failed to geocode address. Please enter coordinates manually.');
+    } finally {
+      setGeocoding(false);
+    }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -207,6 +260,15 @@ const Deliveries = () => {
                   onChange={(e) => setFormData({...formData, delivery_address: e.target.value})}
                   required
                 />
+                <button 
+                  type="button" 
+                  className="btn-secondary" 
+                  onClick={handleGeocode}
+                  disabled={geocoding}
+                  style={{ marginTop: '8px', width: '100%' }}
+                >
+                  {geocoding ? 'Finding coordinates...' : '📍 Get Coordinates from Address'}
+                </button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
@@ -268,6 +330,30 @@ const Deliveries = () => {
                   onChange={(e) => setFormData({...formData, notes: e.target.value})}
                 />
               </div>
+
+              {/* Preview Map */}
+              {formData.latitude && formData.longitude && (
+                <div className="form-group">
+                  <label>Location Preview</label>
+                  <div style={{ height: '200px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #dee2e6' }}>
+                    <MapContainer
+                      center={[parseFloat(formData.latitude), parseFloat(formData.longitude)]}
+                      zoom={13}
+                      style={{ height: '100%', width: '100%' }}
+                      key={`${formData.latitude}-${formData.longitude}`}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      <Marker position={[parseFloat(formData.latitude), parseFloat(formData.longitude)]}>
+                        <Popup>{formData.delivery_address}</Popup>
+                      </Marker>
+                    </MapContainer>
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                 <button type="submit" className="btn-primary">
                   {editingDelivery ? 'Update Delivery' : 'Create Delivery'}
