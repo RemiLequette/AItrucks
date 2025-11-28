@@ -104,9 +104,11 @@ const Trips = () => {
       setShowAssignModal(false);
       setSelectedTrip(null);
       setSelectedDeliveryIds([]);
-      fetchTrips();
+      await fetchTrips();
       if (selectedTripForView?.id === selectedTrip.id) {
-        handleTripClick(selectedTrip);
+        await handleTripClick(selectedTrip);
+        const updatedTrip = await getTrip(selectedTrip.id);
+        setSelectedTripForView(updatedTrip);
       }
       alert('Deliveries assigned successfully');
     } catch (error: any) {
@@ -140,7 +142,9 @@ const Trips = () => {
       
       await assignDeliveriesToTrip(selectedTripForView.id, updatedDeliveryIds);
       await handleTripClick(selectedTripForView);
-      fetchTrips();
+      await fetchTrips();
+      const updatedTrip = await getTrip(selectedTripForView.id);
+      setSelectedTripForView(updatedTrip);
     } catch (error) {
       console.error('Error removing delivery:', error);
       alert('Failed to remove delivery from trip');
@@ -178,7 +182,9 @@ const Trips = () => {
     try {
       const updatedDeliveryIds = items.map(d => d.id);
       await assignDeliveriesToTrip(selectedTripForView.id, updatedDeliveryIds);
-      fetchTrips();
+      await fetchTrips();
+      const updatedTrip = await getTrip(selectedTripForView.id);
+      setSelectedTripForView(updatedTrip);
     } catch (error) {
       console.error('Error updating delivery order:', error);
       alert('Failed to update delivery order');

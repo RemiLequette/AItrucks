@@ -105,9 +105,36 @@ export const deleteVehicle = async (id: string) => {
 
 // Trips
 export const getTrips = async () => {
-  const { data, error } = await supabase.from('trips').select('*, vehicle:vehicles(name, license_plate)').order('planned_start_time', { ascending: false });
+  // Get trips with aggregated delivery counts and totals
+  const { data, error } = await supabase
+    .from('trips')
+    .select(`
+      *,
+      vehicle:vehicles(name, license_plate),
+      trip_deliveries(
+        delivery:deliveries(weight, volume)
+      )
+    `)
+    .order('planned_start_time', { ascending: false });
+  
   if (error) throw error;
-  const trips = data?.map((t: any) => ({ ...t, vehicle_name: t.vehicle?.name, license_plate: t.vehicle?.license_plate, delivery_count: 0 })) || [];
+  
+  const trips = data?.map((t: any) => {
+    const deliveries = t.trip_deliveries?.map((td: any) => td.delivery) || [];
+    const delivery_count = deliveries.length;
+    const total_weight = deliveries.reduce((sum: number, d: any) => sum + (parseFloat(d?.weight) || 0), 0);
+    const total_volume = deliveries.reduce((sum: number, d: any) => sum + (parseFloat(d?.volume) || 0), 0);
+    
+    return {
+      ...t,
+      vehicle_name: t.vehicle?.name,
+      license_plate: t.vehicle?.license_plate,
+      delivery_count,
+      total_weight,
+      total_volume,
+    };
+  }) || [];
+  
   return { trips };
 };
 
