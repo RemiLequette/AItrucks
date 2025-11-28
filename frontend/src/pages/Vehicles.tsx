@@ -11,7 +11,8 @@ const Vehicles = () => {
     name: '',
     license_plate: '',
     capacity_weight: '',
-    capacity_volume: ''
+    capacity_volume: '',
+    start_location: ''
   });
   const { hasRole } = useAuth();
 
@@ -44,7 +45,8 @@ const Vehicles = () => {
         name: '',
         license_plate: '',
         capacity_weight: '',
-        capacity_volume: ''
+        capacity_volume: '',
+        start_location: ''
       });
       fetchVehicles();
     } catch (error) {
@@ -86,6 +88,7 @@ const Vehicles = () => {
               <tr>
                 <th>Name</th>
                 <th>License Plate</th>
+                <th>Start Location</th>
                 <th>Capacity Weight (kg)</th>
                 <th>Capacity Volume (m³)</th>
                 <th>Status</th>
@@ -96,6 +99,7 @@ const Vehicles = () => {
                 <tr key={vehicle.id}>
                   <td>{vehicle.name}</td>
                   <td>{vehicle.license_plate}</td>
+                  <td>{vehicle.start_location || '-'}</td>
                   <td>{vehicle.capacity_weight}</td>
                   <td>{vehicle.capacity_volume}</td>
                   <td>{getStatusBadge(vehicle.status)}</td>
@@ -126,6 +130,16 @@ const Vehicles = () => {
                   type="text"
                   value={formData.license_plate}
                   onChange={(e) => setFormData({...formData, license_plate: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Start Location (Address) *</label>
+                <input
+                  type="text"
+                  value={formData.start_location}
+                  onChange={(e) => setFormData({...formData, start_location: e.target.value})}
+                  placeholder="e.g., 123 Main St, Paris, France"
                   required
                 />
               </div>
