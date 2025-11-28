@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { getDeliveries, createDelivery, updateDelivery, deleteDelivery } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Trash2, Edit } from 'lucide-react';
+import { Plus, Trash2, Edit, Download, Upload } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -165,18 +166,123 @@ const Deliveries = () => {
     return <span className={`badge badge-${status}`}>{status}</span>;
   };
 
+  const handleExport = () => {
+    // Prepare data for export
+    const exportData = deliveries.map(delivery => {
+      const match = delivery.delivery_location?.match(/POINT\(([\d.-]+)\s+([\d.-]+)\)/);
+      return {
+        'Customer Name': delivery.customer_name,
+        'Phone': delivery.customer_phone || '',
+        'Address': delivery.delivery_address,
+        'Latitude': match ? match[2] : '',
+        'Longitude': match ? match[1] : '',
+        'Scheduled Date': delivery.scheduled_date ? new Date(delivery.scheduled_date).toLocaleString() : '',
+        'Weight (kg)': delivery.weight,
+        'Volume (m³)': delivery.volume,
+        'Status': delivery.status,
+        'Notes': delivery.notes || ''
+      };
+    });
+
+    // Create workbook and worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Deliveries');
+
+    // Generate filename with current date
+    const filename = `deliveries_${new Date().toISOString().split('T')[0]}.xlsx`;
+    
+    // Download file
+    XLSX.writeFile(wb, filename);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const row of jsonData as any[]) {
+          try {
+            const latitude = row['Latitude'];
+            const longitude = row['Longitude'];
+            
+            // Build delivery data object
+            const deliveryData: any = {
+              customer_name: row['Customer Name'],
+              customer_phone: row['Phone'] || '',
+              delivery_address: row['Address'],
+              scheduled_date: row['Scheduled Date'] ? new Date(row['Scheduled Date']).toISOString() : new Date().toISOString(),
+              weight: parseFloat(row['Weight (kg)']),
+              volume: parseFloat(row['Volume (m³)']),
+              notes: row['Notes'] || ''
+            };
+            
+            // Only add location if both latitude and longitude are provided
+            if (latitude && longitude && !isNaN(parseFloat(latitude)) && !isNaN(parseFloat(longitude))) {
+              deliveryData.delivery_location = `POINT(${longitude} ${latitude})`;
+            }
+            
+            await createDelivery(deliveryData);
+            successCount++;
+          } catch (error) {
+            console.error('Error importing row:', row, error);
+            errorCount++;
+          }
+        }
+
+        alert(`Import complete!\n✓ ${successCount} deliveries imported\n${errorCount > 0 ? `✗ ${errorCount} errors` : ''}`);
+        fetchDeliveries();
+      } catch (error) {
+        console.error('Error reading file:', error);
+        alert('Failed to read Excel file. Please check the format.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    
+    // Reset input so same file can be imported again
+    e.target.value = '';
+  };
+
   if (loading) return <div>Loading...</div>;
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h1 className="page-title">Deliveries</h1>
-        {hasRole('delivery_creator', 'admin') && (
-          <button className="btn-primary" onClick={() => { setEditingDelivery(null); setShowModal(true); }}>
-            <Plus size={18} style={{ marginRight: '8px', display: 'inline' }} />
-            New Delivery
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="btn-secondary" onClick={handleExport} disabled={deliveries.length === 0}>
+            <Download size={18} style={{ marginRight: '8px', display: 'inline' }} />
+            Export to Excel
           </button>
-        )}
+          {(hasRole('delivery_creator') || hasRole('admin')) && (
+            <>
+              <label className="btn-secondary" style={{ marginBottom: 0, cursor: 'pointer' }}>
+                <Upload size={18} style={{ marginRight: '8px', display: 'inline' }} />
+                Import from Excel
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleImport}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              <button className="btn-primary" onClick={() => { setEditingDelivery(null); setShowModal(true); }}>
+                <Plus size={18} style={{ marginRight: '8px', display: 'inline' }} />
+                New Delivery
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="card">
@@ -188,6 +294,7 @@ const Deliveries = () => {
               <tr>
                 <th>Customer</th>
                 <th>Address</th>
+                <th>Location</th>
                 <th>Scheduled Date</th>
                 <th>Weight (kg)</th>
                 <th>Volume (m³)</th>
@@ -196,10 +303,19 @@ const Deliveries = () => {
               </tr>
             </thead>
             <tbody>
-              {deliveries.map((delivery) => (
-                <tr key={delivery.id}>
+              {deliveries.map((delivery) => {
+                const hasLocation = delivery.delivery_location && delivery.delivery_location.includes('POINT');
+                return (
+                <tr key={delivery.id} style={!hasLocation ? { backgroundColor: '#fff3cd' } : {}}>
                   <td>{delivery.customer_name}</td>
                   <td>{delivery.delivery_address}</td>
+                  <td>
+                    {hasLocation ? (
+                      <span style={{ color: '#28a745', fontWeight: 'bold' }}>✓ Valid</span>
+                    ) : (
+                      <span style={{ color: '#dc3545', fontWeight: 'bold' }}>⚠ Missing</span>
+                    )}
+                  </td>
                   <td>{new Date(delivery.scheduled_date).toLocaleString()}</td>
                   <td>{delivery.weight}</td>
                   <td>{delivery.volume}</td>
@@ -225,7 +341,7 @@ const Deliveries = () => {
                     )}
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         )}

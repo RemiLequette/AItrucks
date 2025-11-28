@@ -96,6 +96,11 @@ button:active {
   color: white;
 }
 
+label.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+}
+
 /* Input styles */
 input,
 select,
