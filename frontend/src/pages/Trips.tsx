@@ -79,9 +79,11 @@ const Trips = () => {
       const currentDeliveryIds = tripResponse.deliveries?.map((d: any) => d.id) || [];
       setSelectedDeliveryIds(currentDeliveryIds);
       
-      // Get all pending deliveries
+      // Get all pending or assigned deliveries
       const deliveriesResponse = await getDeliveries();
-      setAvailableDeliveries(deliveriesResponse.deliveries.filter((d: any) => d.status === 'pending'));
+      setAvailableDeliveries(deliveriesResponse.deliveries.filter((d: any) => 
+        d.status === 'pending' || d.status === 'assigned'
+      ));
       
       setShowAssignModal(true);
     } catch (error) {

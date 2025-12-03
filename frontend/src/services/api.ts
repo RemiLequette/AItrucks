@@ -158,6 +158,27 @@ export const updateTripStatus = async (id: string, status: string) => {
 };
 
 export const deleteTrip = async (id: string) => {
+  // Get all deliveries assigned to this trip
+  const { data: tripDeliveries } = await supabase
+    .from('trip_deliveries')
+    .select('delivery_id')
+    .eq('trip_id', id);
+  
+  const deliveryIds = tripDeliveries?.map((td: any) => td.delivery_id) || [];
+  
+  // Update delivery status back to pending
+  if (deliveryIds.length > 0) {
+    const { error: updateError } = await supabase
+      .from('deliveries')
+      .update({ status: 'pending' })
+      .in('id', deliveryIds);
+    if (updateError) {
+      console.error('Error updating delivery status:', updateError);
+      throw updateError;
+    }
+  }
+  
+  // Delete the trip (trip_deliveries will be cascade deleted)
   const { error } = await supabase.from('trips').delete().eq('id', id);
   if (error) throw error;
   return { message: 'Trip deleted successfully' };
@@ -165,14 +186,48 @@ export const deleteTrip = async (id: string) => {
 
 // Assign deliveries to trip
 export const assignDeliveriesToTrip = async (tripId: string, deliveryIds: string[]) => {
-  // First, remove existing assignments
+  // First, get existing assignments for this trip to track removed deliveries
+  const { data: existingAssignments } = await supabase
+    .from('trip_deliveries')
+    .select('delivery_id')
+    .eq('trip_id', tripId);
+  
+  const existingDeliveryIds = existingAssignments?.map((a: any) => a.delivery_id) || [];
+  const removedDeliveryIds = existingDeliveryIds.filter((id: string) => !deliveryIds.includes(id));
+  
+  // Remove deliveries being assigned from ANY other trip (to prevent double assignment)
+  if (deliveryIds.length > 0) {
+    const { error: removeFromOtherTripsError } = await supabase
+      .from('trip_deliveries')
+      .delete()
+      .in('delivery_id', deliveryIds)
+      .neq('trip_id', tripId);
+    if (removeFromOtherTripsError) {
+      console.error('Error removing deliveries from other trips:', removeFromOtherTripsError);
+      throw removeFromOtherTripsError;
+    }
+  }
+  
+  // Remove existing assignments from this trip
   const { error: deleteError } = await supabase.from('trip_deliveries').delete().eq('trip_id', tripId);
   if (deleteError) {
     console.error('Error deleting existing assignments:', deleteError);
     throw deleteError;
   }
   
-  // Then add new assignments with sequence
+  // Update status of removed deliveries back to pending
+  if (removedDeliveryIds.length > 0) {
+    const { error: updateRemovedError } = await supabase
+      .from('deliveries')
+      .update({ status: 'pending' })
+      .in('id', removedDeliveryIds);
+    if (updateRemovedError) {
+      console.error('Error updating removed delivery status:', updateRemovedError);
+      throw updateRemovedError;
+    }
+  }
+  
+  // Add new assignments with sequence
   const assignments = deliveryIds.map((deliveryId, index) => ({
     trip_id: tripId,
     delivery_id: deliveryId,
@@ -184,6 +239,16 @@ export const assignDeliveriesToTrip = async (tripId: string, deliveryIds: string
     if (insertError) {
       console.error('Error inserting assignments:', insertError);
       throw insertError;
+    }
+    
+    // Update delivery status to 'assigned'
+    const { error: updateStatusError } = await supabase
+      .from('deliveries')
+      .update({ status: 'assigned' })
+      .in('id', deliveryIds);
+    if (updateStatusError) {
+      console.error('Error updating delivery status:', updateStatusError);
+      throw updateStatusError;
     }
   }
   
