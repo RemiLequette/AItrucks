@@ -2,13 +2,13 @@ import React, { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Truck, Package, MapPin, Users, LogOut, LayoutDashboard, Map as MapIcon } from 'lucide-react';
-import './Layout.css';
+import './AppLayout.css';
 
-interface LayoutProps {
+interface AppLayoutProps {
   children: ReactNode;
 }
 
-const Layout = ({ children }: LayoutProps) => {
+const AppLayout = ({ children }: AppLayoutProps) => {
   const { user, logout, hasRole } = useAuth();
   const location = useLocation();
 
@@ -77,4 +77,4 @@ const Layout = ({ children }: LayoutProps) => {
   );
 };
 
-export default Layout;
+export default AppLayout;

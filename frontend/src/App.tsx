@@ -8,7 +8,7 @@ import Vehicles from './pages/Vehicles';
 import Trips from './pages/Trips';
 import Users from './pages/Users';
 import Map from './pages/Map';
-import Layout from './components/Layout';
+import AppLayout from './layout/AppLayout';
 
 function App() {
   const { user, loading } = useAuth();
@@ -39,7 +39,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Layout>
+      <AppLayout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/deliveries" element={<Deliveries />} />
@@ -49,7 +49,7 @@ function App() {
           {user.role === 'admin' && <Route path="/users" element={<Users />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </Layout>
+      </AppLayout>
     </BrowserRouter>
   );
 }
