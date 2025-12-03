@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getTrips, createTrip, getVehicles, getTrip, getDeliveries, assignDeliveriesToTrip } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Edit2 } from 'lucide-react';
@@ -6,6 +7,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Table, createBadgeColumn, createDateColumn, createNumberColumn, createActionColumn } from '../components/Table';
 
 const Trips = () => {
+  const { t } = useTranslation();
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -272,7 +274,7 @@ const Trips = () => {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1 className="page-title">Trips</h1>
+        <h1 className="page-title">{t('trips.title')}</h1>
         {hasRole('trip_planner', 'admin') && (
           <button className="btn-primary" onClick={handleOpenModal}>
             <Plus size={18} style={{ marginRight: '8px', display: 'inline' }} />
@@ -285,7 +287,7 @@ const Trips = () => {
         data={trips}
         columns={columns}
         loading={loading}
-        emptyMessage="No trips found. Create trips to assign deliveries to vehicles."
+        emptyMessage={t('empty.trips')}
         enableSorting={true}
         getRowId={(row) => row.id}
         onRowClick={handleTripClick}
@@ -318,7 +320,7 @@ const Trips = () => {
             data={tripDeliveries}
             columns={deliveryColumns}
             loading={loadingDeliveries}
-            emptyMessage="No deliveries assigned to this trip yet. Click 'Modify Assignments' to add deliveries."
+            emptyMessage={t('trips.noDeliveries')}
             enableSorting={false}
             getRowId={(row) => row.id}
             draggable={hasRole('trip_planner', 'admin')}

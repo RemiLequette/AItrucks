@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getDeliveries, getVehicles, getTrips } from '../services/api';
 import { Map, MapLayers, MapStats, MapMarker, MapLayer, createDeliveryMarker, createVehicleMarker } from '../components/Map';
 import 'leaflet/dist/leaflet.css';
 
 const MapPage = () => {
+  const { t } = useTranslation();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [layers, setLayers] = useState<MapLayer[]>([
-    { id: 'deliveries', name: 'Deliveries', color: '#dc3545', visible: true, count: 0 },
-    { id: 'vehicles', name: 'Vehicles', color: '#007bff', visible: true, count: 0 },
-    { id: 'trips', name: 'Trip Routes', color: '#28a745', visible: false, count: 0 },
+    { id: 'deliveries', name: t('map.deliveries'), color: '#dc3545', visible: true, count: 0 },
+    { id: 'vehicles', name: t('map.vehicles'), color: '#007bff', visible: true, count: 0 },
+    { id: 'trips', name: t('map.tripRoutes'), color: '#28a745', visible: false, count: 0 },
   ]);
 
   useEffect(() => {
@@ -64,7 +66,7 @@ const MapPage = () => {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h1 className="page-title">Map View</h1>
+        <h1 className="page-title">{t('map.title')}</h1>
         <MapLayers layers={layers} onToggle={handleLayerToggle} />
       </div>
 

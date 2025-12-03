@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getDeliveries, createDelivery, updateDelivery, deleteDelivery } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Download, Upload } from 'lucide-react';
@@ -23,6 +24,7 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 const Deliveries = () => {
+  const { t } = useTranslation();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -293,7 +295,7 @@ const Deliveries = () => {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1 className="page-title">Deliveries</h1>
+        <h1 className="page-title">{t('deliveries.title')}</h1>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button className="btn-secondary" onClick={handleExport} disabled={deliveries.length === 0}>
             <Download size={18} style={{ marginRight: '8px', display: 'inline' }} />

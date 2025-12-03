@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getVehicles, createVehicle, updateVehicle } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Plus } from 'lucide-react';
@@ -22,6 +23,7 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 const Vehicles = () => {
+  const { t } = useTranslation();
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -186,7 +188,7 @@ const Vehicles = () => {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1 className="page-title">Vehicles</h1>
+        <h1 className="page-title">{t('vehicles.title')}</h1>
         {hasRole('admin') && (
           <button className="btn-primary" onClick={() => { setEditingVehicle(null); setShowModal(true); }}>
             <Plus size={18} style={{ marginRight: '8px', display: 'inline' }} />
@@ -199,7 +201,7 @@ const Vehicles = () => {
         data={vehicles}
         columns={columns}
         loading={loading}
-        emptyMessage="No vehicles found. Add vehicles to manage your fleet."
+        emptyMessage={t('empty.vehicles')}
         enableSorting={true}
         getRowId={(row) => row.id}
       />

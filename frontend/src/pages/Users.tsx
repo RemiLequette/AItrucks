@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getUsers, updateUserRole, updateUserStatus } from '../services/api';
 import { Users as UsersIcon } from 'lucide-react';
 
 const Users = () => {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -45,7 +47,7 @@ const Users = () => {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
         <UsersIcon size={32} style={{ marginRight: '16px' }} />
-        <h1 className="page-title" style={{ margin: 0 }}>User Management</h1>
+        <h1 className="page-title" style={{ margin: 0 }}>{t('users.title')}</h1>
       </div>
 
       <div className="card">

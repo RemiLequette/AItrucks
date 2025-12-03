@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getDeliveries, getVehicles, getTrips } from '../services/api';
 import { Package, Truck, MapPin, TrendingUp } from 'lucide-react';
 import './Dashboard.css';
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const [stats, setStats] = useState({
     totalDeliveries: 0,
     pendingDeliveries: 0,
@@ -42,12 +44,12 @@ const Dashboard = () => {
   }, []);
 
   if (loading) {
-    return <div>Loading dashboard...</div>;
+    return <div>{t('dashboard.loadingDashboard')}</div>;
   }
 
   return (
     <div className="dashboard">
-      <h1 className="page-title">Dashboard</h1>
+      <h1 className="page-title">{t('dashboard.title')}</h1>
       
       <div className="stats-grid">
         <div className="stat-card">
@@ -55,9 +57,9 @@ const Dashboard = () => {
             <Package size={32} color="#1e40af" />
           </div>
           <div className="stat-content">
-            <div className="stat-label">Total Deliveries</div>
+            <div className="stat-label">{t('dashboard.totalDeliveries')}</div>
             <div className="stat-value">{stats.totalDeliveries}</div>
-            <div className="stat-detail">{stats.pendingDeliveries} pending</div>
+            <div className="stat-detail">{stats.pendingDeliveries} {t('dashboard.pendingDeliveries')}</div>
           </div>
         </div>
 
@@ -66,9 +68,9 @@ const Dashboard = () => {
             <Truck size={32} color="#059669" />
           </div>
           <div className="stat-content">
-            <div className="stat-label">Total Vehicles</div>
+            <div className="stat-label">{t('dashboard.totalVehicles')}</div>
             <div className="stat-value">{stats.totalVehicles}</div>
-            <div className="stat-detail">{stats.availableVehicles} available</div>
+            <div className="stat-detail">{stats.availableVehicles} {t('dashboard.availableVehicles')}</div>
           </div>
         </div>
 
@@ -77,9 +79,9 @@ const Dashboard = () => {
             <MapPin size={32} color="#d97706" />
           </div>
           <div className="stat-content">
-            <div className="stat-label">Active Trips</div>
+            <div className="stat-label">{t('dashboard.activeTrips')}</div>
             <div className="stat-value">{stats.activeTrips}</div>
-            <div className="stat-detail">in progress</div>
+            <div className="stat-detail">{t('dashboard.inProgress')}</div>
           </div>
         </div>
 
@@ -88,16 +90,16 @@ const Dashboard = () => {
             <TrendingUp size={32} color="#6366f1" />
           </div>
           <div className="stat-content">
-            <div className="stat-label">Completed Trips</div>
+            <div className="stat-label">{t('dashboard.completedTrips')}</div>
             <div className="stat-value">{stats.completedTrips}</div>
-            <div className="stat-detail">total</div>
+            <div className="stat-detail">{t('dashboard.total')}</div>
           </div>
         </div>
       </div>
 
       <div className="dashboard-info card">
-        <h2>Welcome to AI Trucks Delivery Planning</h2>
-        <p>Use the navigation menu to manage deliveries, vehicles, and trips. The system helps you optimize delivery routes and track your fleet efficiently.</p>
+        <h2>{t('dashboard.welcome')}</h2>
+        <p>{t('dashboard.welcomeMessage')}</p>
       </div>
     </div>
   );
