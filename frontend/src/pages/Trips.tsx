@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getTrips, createTrip, getVehicles, getTrip, getDeliveries, assignDeliveriesToTrip } from '../services/api';
+import { getTrips, createTrip, getVehicles, getTrip, getDeliveries, assignDeliveriesToTrip, deleteTrip } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Edit2 } from 'lucide-react';
 import { ColumnDef } from '@tanstack/react-table';
@@ -119,6 +119,24 @@ const Trips = () => {
     }
   };
 
+  const handleDelete = async (trip: any) => {
+    if (!window.confirm(`Are you sure you want to delete trip "${trip.name}"?`)) {
+      return;
+    }
+    try {
+      await deleteTrip(trip.id);
+      // Clear selected trip if it was deleted
+      if (selectedTripForView?.id === trip.id) {
+        setSelectedTripForView(null);
+        setTripDeliveries([]);
+      }
+      fetchTrips();
+    } catch (error) {
+      console.error('Error deleting trip:', error);
+      alert('Failed to delete trip');
+    }
+  };
+
   const handleTripClick = async (trip: any) => {
     setSelectedTripForView(trip);
     setLoadingDeliveries(true);
@@ -221,9 +239,11 @@ const Trips = () => {
       createActionColumn({
         onAssign: hasRole('trip_planner', 'admin') ? handleOpenAssignModal : undefined,
         showAssign: () => hasRole('trip_planner', 'admin'),
+        onDelete: hasRole('admin') ? handleDelete : undefined,
+        showDelete: () => hasRole('admin'),
       }),
     ],
-    [hasRole]
+    [hasRole, handleOpenAssignModal, handleDelete]
   );
 
   const deliveryColumns = useMemo<ColumnDef<any>[]>(
