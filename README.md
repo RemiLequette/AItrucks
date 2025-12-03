@@ -1,39 +1,29 @@
-# AI Trucks - Delivery Planning System (Supabase Version)
+# AI Trucks - Delivery Planning System
 
-A comprehensive web-based delivery planning and fleet management system built with React, TypeScript, Node.js, Express, and **Supabase** (PostgreSQL + Authentication).
+A comprehensive web-based delivery planning and fleet management system built with React, TypeScript, and Supabase (PostgreSQL + PostGIS).
 
 ## Features
 
-- 🚚 **Vehicle Management** - Track and manage your fleet of delivery vehicles
-- 📦 **Delivery Management** - Create and manage delivery orders with location, scheduling, and capacity details
-- 🗺️ **Trip Planning** - Assign deliveries to vehicles with capacity validation
+- 🚚 **Vehicle Management** - Track fleet capacity, location, and status
+- 📦 **Delivery Management** - Create, assign, and track delivery orders
+- 🗺️ **Trip Planning** - Assign deliveries to vehicles with drag-and-drop reordering
 - 👥 **User Management** - Role-based access control (Viewer, Delivery Creator, Trip Planner, Admin)
-- 📊 **Dashboard** - Real-time overview of deliveries, vehicles, and trips
-- 🔐 **Supabase Authentication** - Secure authentication with Supabase Auth
-- 🗄️ **Supabase Database** - PostgreSQL with PostGIS for geospatial data
+- 📊 **Dashboard** - Real-time overview with statistics
+- 🌍 **Internationalization** - Multi-language support (English/French)
+- 🔐 **Secure Authentication** - Supabase Auth with Row Level Security
+- 📍 **Geospatial** - PostGIS for location tracking and route planning
 
-## Tech Stack
+## Documentation
 
-### Frontend
-- React 18 + TypeScript
-- Vite
-- Supabase Client
-- React Router DOM
-- Leaflet (Maps)
-- Lucide React (Icons)
+Comprehensive documentation is available in the `docs/` folder:
 
-### Backend
-- Node.js + Express + TypeScript
-- Supabase (PostgreSQL + PostGIS + Auth)
-- JWT Authentication
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System design, component structure, tech stack
+- **[DATABASE.md](docs/DATABASE.md)** - Database schema, relationships, PostGIS usage, RLS policies
+- **[BUSINESS-LOGIC.md](docs/BUSINESS-LOGIC.md)** - Business rules, workflows, validation rules, user roles
+- **[API.md](docs/API.md)** - API endpoints, request/response formats, authentication
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** - Coding standards and conventions
 
-## Prerequisites
-
-- Node.js (v18 or higher)
-- Supabase account (free tier available at [supabase.com](https://supabase.com))
-- npm or yarn
-
-## Supabase Setup
+## Quick Start
 
 ### 1. Create Supabase Project
 
@@ -41,63 +31,16 @@ A comprehensive web-based delivery planning and fleet management system built wi
 2. Wait for the project to finish setting up (~2 minutes)
 3. Note your project URL and API keys from Settings > API
 
-### 2. Set Up Database Schema
+### 2. Database Schema Setup
 
 1. In your Supabase dashboard, go to **SQL Editor**
-2. Copy the contents of `backend/src/database/supabase-schema.sql`
-3. Paste and run the SQL script to create tables, indexes, and Row Level Security policies
-
-### 3. Configure Authentication
-
-1. In Supabase dashboard, go to **Authentication > Providers**
-2. Enable **Email** provider
-3. Optionally configure other providers (Google, GitHub, etc.)
-4. In **Authentication > URL Configuration**, add your frontend URL (http://localhost:5173)
-
-## Installation
-
-### 1. Clone the Repository
-
-\`\`\`bash
-git clone <repository-url>
-cd AItrucks
-\`\`\`
-
-### 2. Backend Setup
-
-\`\`\`bash
-cd backend
-
-# Install dependencies
-npm install
-
-# Copy Supabase environment template
-cp .env.supabase.example .env
-
-# Edit .env with your Supabase credentials
-\`\`\`
-
-Update `backend/.env` with your Supabase credentials:
-
-\`\`\`env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.your-project.supabase.co:5432/postgres
-PORT=3001
-NODE_ENV=development
-\`\`\`
-
-**Where to find these values:**
-- **SUPABASE_URL**: Settings > API > Project URL
-- **SUPABASE_ANON_KEY**: Settings > API > Project API keys > anon/public
-- **SUPABASE_SERVICE_ROLE_KEY**: Settings > API > Project API keys > service_role (keep secret!)
-- **DATABASE_URL**: Settings > Database > Connection string > URI
-
-\`\`\`bash
-# Start backend server
-npm run dev
-\`\`\`
+2. Copy the contents of `database/schema.sql`
+3. Paste and run the SQL script to create:
+   - Tables (users, vehicles, deliveries, trips, trip_deliveries)
+   - PostGIS extension and geography columns
+   - Indexes for performance
+   - Triggers for timestamp updates
+4. Run `database/fix-trip-deliveries-policies.sql` to set up Row Level Security policies
 
 ### 3. Frontend Setup
 
@@ -107,8 +50,8 @@ cd frontend
 # Install dependencies
 npm install
 
-# Copy Supabase environment template
-cp .env.supabase.example .env
+# Create .env file
+cp .env.example .env
 
 # Edit .env with your Supabase credentials
 \`\`\`
@@ -118,17 +61,18 @@ Update `frontend/.env`:
 \`\`\`env
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
-VITE_API_URL=http://localhost:3001/api
 \`\`\`
 
+**Where to find these values:**
+- Settings > API > Project URL
+- Settings > API > Project API keys > anon/public
+
 \`\`\`bash
-# Start frontend server
-npm run dev
+# Start frontend dev server
+npm run dev  # Opens on http://localhost:5173
 \`\`\`
 
 ## Creating Your First Admin User
-
-### Option 1: Via Supabase Dashboard
 
 1. Go to **Authentication > Users** in Supabase dashboard
 2. Click **Add User** > **Create new user**
@@ -141,94 +85,99 @@ SET role = 'admin', full_name = 'Admin User'
 WHERE email = 'your-email@example.com';
 \`\`\`
 
-### Option 2: Via API (after backend is running)
-
-\`\`\`bash
-curl -X POST http://localhost:3001/api/auth/register \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "email": "admin@example.com",
-    "password": "securepassword",
-    "full_name": "Admin User",
-    "role": "admin"
-  }'
-\`\`\`
-
 ## User Roles & Permissions
 
 | Role | Permissions |
 |------|------------|
-| **Viewer** | Read-only access to deliveries, vehicles, and trips |
-| **Delivery Creator** | Create, edit, and delete deliveries |
-| **Trip Planner** | Create and manage trips, assign deliveries to vehicles |
-| **Admin** | Full access including user management |
+| **Viewer** | Read-only access |
+| **Delivery Creator** | Create, edit, delete deliveries + Excel import/export |
+| **Trip Planner** | Create trips, assign deliveries, reorder via drag-and-drop |
+| **Admin** | Full access including user management and trip deletion |
 
-## Supabase Benefits
+See [BUSINESS-LOGIC.md](docs/BUSINESS-LOGIC.md) for detailed role permissions.
 
-✅ **No Database Setup** - PostgreSQL with PostGIS is pre-configured  
-✅ **Built-in Authentication** - Email, OAuth, magic links out of the box  
-✅ **Row Level Security** - Database-level security policies  
-✅ **Real-time Subscriptions** - Optional real-time updates  
-✅ **Automatic API** - Auto-generated REST and GraphQL APIs  
-✅ **Dashboard** - Visual database and user management  
-✅ **Free Tier** - 500MB database, 50k monthly active users
+## Key Features
+
+### Delivery Management
+- Create deliveries with customer info, address, weight, volume
+- Geocode addresses to GPS coordinates
+- Import/export via Excel
+- Status tracking: pending → assigned → in_transit → delivered
+
+### Trip Planning
+- Assign deliveries to vehicles with capacity validation
+- Drag-and-drop reordering of deliveries within trips
+- Visual indication of capacity usage
+- One delivery per trip enforcement
+
+### Map Visualization
+- Interactive map with delivery and vehicle locations
+- Layer toggles (deliveries, vehicles, routes)
+- PostGIS-powered geospatial queries
+
+### Internationalization
+- English and French language support
+- Click-based language switcher in sidebar
+- All pages, dashboard, and UI elements translated
 
 ## Development
-
-### Backend
-\`\`\`bash
-cd backend
-npm run dev     # Start dev server with hot reload
-npm run build   # Compile TypeScript
-npm start       # Run production build
-\`\`\`
-
-### Frontend
 \`\`\`bash
 cd frontend
-npm run dev      # Start dev server with hot reload
+npm run dev      # Vite dev server with HMR
 npm run build    # Build for production
 npm run preview  # Preview production build
+npm test         # Run Vitest tests
 \`\`\`
 
+## Testing
+
+- **Unit Tests**: Vitest + React Testing Library
+- **E2E Tests**: Playwright
+- Run tests: `npm test`
+- See [TESTING.md](TESTING.md) for details
+
 ## Deployment
-
-### Backend (API)
-- Deploy to Vercel, Railway, or Render
-- Set environment variables in hosting platform
-- Ensure Supabase service role key is kept secret
-
-### Frontend
 - Deploy to Vercel, Netlify, or Cloudflare Pages
-- Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
-- The anon key is safe to expose (protected by RLS)
+- Set environment variables: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+- The anon key is safe to expose (protected by Row Level Security)
+
+## Project Structure
+
+\`\`\`
+AItrucks/
+├── docs/                    # Comprehensive documentation
+│   ├── ARCHITECTURE.md      # System design and tech stack
+│   ├── DATABASE.md          # Schema, relationships, PostGIS
+│   ├── BUSINESS-LOGIC.md    # Business rules and workflows
+│   └── API.md               # API endpoints and usage
+├── .github/
+│   └── copilot-instructions.md  # Coding standards
+├── database/
+│   ├── schema.sql           # Main database schema
+│   └── fix-trip-deliveries-policies.sql  # RLS policies
+├── frontend/
+│   ├── src/
+│   │   ├── components/      # Reusable UI components
+│   │   ├── layout/          # App layout (navigation, sidebar)
+│   │   ├── pages/           # Business pages (Deliveries, Trips, etc.)
+│   │   ├── services/        # API integration (api.ts)
+│   │   ├── context/         # React context (Auth)
+│   │   └── i18n/            # Internationalization
+│   └── package.json
+└── README.md
+\`\`\`
+
+## Architecture Highlights
+
+- **Component Separation**: Reusable components vs. business logic
+- **Type Safety**: Full TypeScript coverage
+- **Security**: Row Level Security policies in database
+- **Performance**: PostGIS spatial indexes, memoization
+- **Scalability**: Stateless frontend, Supabase backend
+
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for details.
 
 ## Troubleshooting
-
-### "Missing Supabase environment variables"
-- Ensure .env files are created from .env.supabase.example
-- Verify all Supabase credentials are correct
-
-### Authentication not working
-- Check that Email provider is enabled in Supabase dashboard
-- Verify frontend URL is added to allowed redirect URLs
-- Check browser console for CORS errors
-
-### Database queries failing
-- Ensure supabase-schema.sql has been run in SQL Editor
-- Check Row Level Security policies are configured
-- Verify user has appropriate role assigned
-
-## Future Enhancements
-
-- [ ] Map integration with delivery locations and routes
-- [ ] Schedule/Gantt chart visualization
-- [ ] Route optimization algorithms
-- [ ] Real-time vehicle tracking with Supabase Realtime
-- [ ] Mobile app for drivers
-- [ ] Push notifications
-- [ ] Export reports (PDF, Excel)
-- [ ] Integration with external routing APIs
 
 ## License
 

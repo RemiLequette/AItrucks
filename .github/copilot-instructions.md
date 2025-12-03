@@ -3,6 +3,27 @@
 ## Project Overview
 AItrucks is a delivery planning and fleet management application built with React, TypeScript, Vite, and Supabase. It helps manage deliveries, vehicles, trips, and route optimization.
 
+## Documentation
+
+Comprehensive documentation is available in the `docs/` folder. **Always update documentation when making significant changes:**
+
+- **`docs/ARCHITECTURE.md`** - System design, component structure, tech stack
+- **`docs/DATABASE.md`** - Database schema, relationships, PostGIS usage, RLS policies  
+- **`docs/BUSINESS-LOGIC.md`** - Business rules, workflows, status transitions, validation rules
+- **`docs/API.md`** - API endpoints, request/response formats, authentication patterns
+- **`README.md`** - Quick start guide and project overview
+- **`.github/copilot-instructions.md`** (this file) - Coding standards
+
+### When to Update Documentation
+
+Update documentation when:
+- ✅ Adding new tables or modifying database schema → Update `DATABASE.md`
+- ✅ Changing business rules (e.g., status transitions, validation) → Update `BUSINESS-LOGIC.md`
+- ✅ Adding new API endpoints or modifying existing ones → Update `API.md`
+- ✅ Introducing new architectural patterns → Update `ARCHITECTURE.md`
+- ✅ Adding new features or major changes → Update `README.md`
+- ✅ Changing coding conventions → Update this file
+
 ## Architecture Principles
 
 ### Component Organization
@@ -173,3 +194,7 @@ try {
 - ✅ Document complex logic
 - ✅ Validate user inputs
 - ✅ Use semantic HTML
+- ✅ **Update relevant documentation files when making significant changes**
+- ✅ **Keep business rules documented in BUSINESS-LOGIC.md**
+- ✅ **Document database changes in DATABASE.md**
+- ✅ **Update API.md when adding/modifying endpoints**

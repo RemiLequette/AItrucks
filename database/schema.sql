@@ -1,13 +1,14 @@
 -- Supabase Database Schema for AI Trucks Delivery Planning System
--- This schema has been applied to your Supabase project
+-- This schema reflects the current database state
 -- Project URL: https://tzukzotwqwwhvxgkwjud.supabase.co
+-- Last updated: December 3, 2025
 
 -- Enable PostGIS extension (usually already enabled in Supabase)
 CREATE EXTENSION IF NOT EXISTS postgis;
 
 -- Create enum types
 CREATE TYPE user_role AS ENUM ('viewer', 'delivery_creator', 'trip_planner', 'admin');
-CREATE TYPE delivery_status AS ENUM ('pending', 'assigned', 'in_transit', 'delivered', 'cancelled');
+CREATE TYPE delivery_status AS ENUM ('pending', 'assigned', 'in_transit', 'delivered', 'failed');
 CREATE TYPE vehicle_status AS ENUM ('available', 'in_use', 'maintenance', 'inactive');
 CREATE TYPE trip_status AS ENUM ('planned', 'in_progress', 'completed', 'cancelled');
 
@@ -29,7 +30,8 @@ CREATE TABLE public.vehicles (
   license_plate VARCHAR(50) UNIQUE NOT NULL,
   capacity_weight DECIMAL(10, 2) NOT NULL, -- in kg
   capacity_volume DECIMAL(10, 2) NOT NULL, -- in cubic meters
-  current_location GEOGRAPHY(POINT, 4326), -- PostGIS geography type
+  start_location GEOGRAPHY(POINT, 4326), -- PostGIS: vehicle's default starting location
+  current_location GEOGRAPHY(POINT, 4326), -- PostGIS: vehicle's current position (optional)
   status vehicle_status DEFAULT 'available',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
@@ -138,3 +140,122 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Row Level Security (RLS) Policies
+-- Enable RLS on all tables
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.deliveries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.trip_deliveries ENABLE ROW LEVEL SECURITY;
+
+-- Users table policies
+CREATE POLICY "Users can view their own profile" ON public.users
+  FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can view all users if authenticated" ON public.users
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid())
+  );
+
+CREATE POLICY "Admins can manage users" ON public.users
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Vehicles table policies
+CREATE POLICY "Authenticated users can view vehicles" ON public.vehicles
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid())
+  );
+
+CREATE POLICY "Trip planners and admins can insert vehicles" ON public.vehicles
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('trip_planner', 'admin'))
+  );
+
+CREATE POLICY "Trip planners and admins can update vehicles" ON public.vehicles
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('trip_planner', 'admin'))
+  );
+
+CREATE POLICY "Admins can delete vehicles" ON public.vehicles
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Deliveries table policies
+CREATE POLICY "Authenticated users can view deliveries" ON public.deliveries
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid())
+  );
+
+CREATE POLICY "Delivery creators and above can insert deliveries" ON public.deliveries
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('delivery_creator', 'trip_planner', 'admin'))
+  );
+
+CREATE POLICY "Delivery creators and above can update deliveries" ON public.deliveries
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('delivery_creator', 'trip_planner', 'admin'))
+  );
+
+CREATE POLICY "Delivery creators and above can delete deliveries" ON public.deliveries
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('delivery_creator', 'trip_planner', 'admin'))
+  );
+
+-- Trips table policies
+CREATE POLICY "Authenticated users can view trips" ON public.trips
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid())
+  );
+
+CREATE POLICY "Trip planners and admins can insert trips" ON public.trips
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('trip_planner', 'admin'))
+  );
+
+CREATE POLICY "Trip planners and admins can update trips" ON public.trips
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('trip_planner', 'admin'))
+  );
+
+CREATE POLICY "Admins can delete trips" ON public.trips
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Trip deliveries table policies
+CREATE POLICY "Authenticated users can view trip deliveries" ON public.trip_deliveries
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid())
+  );
+
+CREATE POLICY "Trip planners and admins can manage trip deliveries" ON public.trip_deliveries
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role IN ('trip_planner', 'admin'))
+  );
+
+-- Business Logic Notes:
+-- 1. Delivery Status Transitions:
+--    pending → assigned (when assigned to a trip)
+--    assigned → in_transit (when trip starts)
+--    in_transit → delivered or failed (when delivery is completed)
+--    When removed from trip or trip deleted → pending
+--
+-- 2. Trip-Delivery Assignment Rules:
+--    - Only deliveries with status 'pending' or 'assigned' can be assigned to trips
+--    - A delivery can only be in ONE trip at a time
+--    - When assigning to a new trip, automatically removed from previous trip
+--    - When trip is deleted, all deliveries return to 'pending' status
+--
+-- 3. Capacity Validation:
+--    - Trip total_weight must not exceed vehicle.capacity_weight
+--    - Trip total_volume must not exceed vehicle.capacity_volume
+--    - Calculated dynamically from sum of assigned delivery weights/volumes
+--
+-- 4. Sequence Order:
+--    - Deliveries in a trip have sequence_order (1-based)
+--    - Determines delivery route order
+--    - Can be reordered via drag-and-drop in UI
