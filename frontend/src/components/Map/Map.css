@@ -1,0 +1,61 @@
+.map-container {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.map-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  background-color: #f8f9fa;
+  color: #6c757d;
+}
+
+.map-layers {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.map-layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.map-layer-toggle input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
+.map-layer-label {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.map-stats {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+  font-size: 14px;
+  color: #666;
+}
+
+.map-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-stat-dot {
+  font-weight: bold;
+  font-size: 16px;
+}
